@@ -1,0 +1,125 @@
+#include <Servo.h>    //include the servo library
+#define servoPin 4     
+Servo myservo;        // create servo object to control a servo
+float steeringAngle;  // variable to store the servo position
+
+#include <Encoder.h>
+Encoder myEnc1(2, 11); //enable pins with interrupt capability for Encoder 1
+Encoder myEnc2(3,12); //enable pins with interrupt capability for Encoder 2
+long oldPosition1  = -999;
+long oldPosition2  = -999;
+float distance1;
+float distance2;
+#define enA 5   //EnableA command line - should be a PWM pin
+#define enB 6   //EnableB command line - should be a PWM pin
+     
+//name the motor control pins - replace the CHANGEME with your pin number, digital pins do not need the 'D' prefix whereas analogue pins need the 'A' prefix
+#define INa A0  //Channel A direction 
+#define INb A1 //Channel A direction 
+#define INc A2  //Channel B direction 
+#define INd A3  //Channel B direction 
+
+byte speedSetting = 0;  //initial speed = 0
+
+void setup() {
+  // put your setup code here, to run once:
+  myservo.attach(servoPin);  //attach our servo object to pin D4
+  //the Servo library takes care of defining the PinMode declaration (libraries/Servo/src/avr/Servo.cpp line 240)
+
+  //configure the motor control pins as outputs
+  pinMode(INa, OUTPUT);
+  pinMode(INb, OUTPUT);
+  pinMode(INc, OUTPUT);
+  pinMode(INd, OUTPUT);
+  pinMode(enA, OUTPUT);
+  pinMode(enB, OUTPUT);   
+
+  //initialise serial communication
+  Serial.begin(9600);
+  Serial.println("Arduino Nano is Running"); //sanity check
+
+  speedSetting = 255;
+  motors(speedSetting, speedSetting); //make a call to the "motors" function and provide it with a value for each of the 2 motors - can be different for each motor - using same value here for expedience
+  Serial.print("Motor Speeds: ");
+  Serial.println(speedSetting); 
+}
+void setup2() 
+{
+  Serial.begin(9600); 
+}
+
+void loop() {
+ // FixSteering();
+  float myangle = 90;
+  myservo.write(myangle);
+  delay(500);
+  do {
+    myservo.write(myangle);
+    EncoderMath(distance1);
+    goForwards();
+    //Serial.print(distance1);
+  }
+  while (distance1<10);
+  stopMotors();
+  delay(5000000);
+}
+
+int EncoderMath(int distance) 
+{
+  long newPosition1 = myEnc1.read();
+  long newPosition2 = myEnc2.read();
+  
+  // check if encoder1 has moved
+  if (newPosition1 != oldPosition1) 
+  {
+    oldPosition1 = newPosition1;
+    distance1 = newPosition1 * ((0.06*M_PI)/24);
+    }
+
+// check if encoder2 has moved
+  if (newPosition2 != oldPosition2) 
+  {
+    oldPosition2 = newPosition2;
+    distance2 = newPosition2 * ((0.06*M_PI)/24);
+    }
+    return distance1;
+}
+
+void motors(int leftSpeed, int rightSpeed) {
+  //set individual motor speed
+  //direction is set separately
+  leftSpeed=255;
+  rightSpeed=241;
+  analogWrite(enA, leftSpeed);
+  analogWrite(enB, rightSpeed);
+}
+
+void FixSteering() {
+  //you may need to change the maximum and minimum servo angle to have the largest steering motion
+  int maxAngle = 90;
+  int minAngle = 0;
+  myservo.write(0);
+  for (steeringAngle = minAngle; steeringAngle <= maxAngle; steeringAngle += 1) { //goes from minAngle to maxAngle (degrees)
+    //in steps of 1 degree
+    myservo.write(steeringAngle);   //tell servo to go to position in variable 'steeringAngle'
+    delay(15);                      //waits 15ms for the servo to reach the position
+  }
+  for (steeringAngle = maxAngle; steeringAngle >= minAngle; steeringAngle -= 1) { // goes from maxAngle to minAngle (degrees)
+    myservo.write(steeringAngle);   //tell servo to go to position in variable 'steeringAngle'
+    delay(15);                      //waits 15 ms for the servo to reach the position
+  }
+}
+
+void goForwards() {
+  digitalWrite(INa, HIGH);
+  digitalWrite(INb, LOW);
+  digitalWrite(INc, HIGH);
+  digitalWrite(INd, LOW);
+}
+
+void stopMotors() {
+  digitalWrite(INa, LOW);
+  digitalWrite(INb, LOW);
+  digitalWrite(INc, LOW);
+  digitalWrite(INd, LOW);
+}
